@@ -1,0 +1,8 @@
+# Squirrel customizations
+# encoding: utf-8
+
+patch:
+  # 候选使用横排
+  style/candidate_list_layout: linear
+  style/text_orientation: horizontal
+  style/horizontal: true
