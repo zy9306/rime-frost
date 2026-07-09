@@ -400,17 +400,17 @@ speller:
     # - derive/^n/l/  #      lai 可输出 nai（奶、乃、奈……）。 可以单向或成对儿启用模糊音
     # - derive/^f/h/
     # - derive/^h/f/
-    # - derive/^l/r/
-    # - derive/^r/l/
+    - derive/^l/r/
+    - derive/^r/l/
     # - derive/^g/k/
     # - derive/^k/g/
     # 韵母
     # - derive/ang$/an/
     # - derive/an$/ang/
-    # - derive/eng$/en/
-    # - derive/en$/eng/
-    # - derive/in$/ing/
-    # - derive/ing$/in/
+    - derive/eng$/en/
+    - derive/en$/eng/
+    - derive/in$/ing/
+    - derive/ing$/in/
     # - derive/ian$/iang/
     # - derive/iang$/ian/
     # - derive/uan$/uang/
@@ -419,7 +419,8 @@ speller:
     # - derive/an$/ai/
     # - derive/ong$/un/
     # - derive/un$/ong/
-    # - derive/ong$/on/
+    - derive/ong$/on/
+    - derive/on$/ong/
     # - derive/iong$/un/
     # - derive/un$/iong/
     # - derive/ong$/eng/
