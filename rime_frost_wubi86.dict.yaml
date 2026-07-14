@@ -2,8 +2,7 @@
 name: rime_frost_wubi86              # 注意name和文件名一致
 version: "2026-04-26"
 sort: by_weight
-# 此处为 输入法所用到的词库，既补充拓展词库的地方
+# 此处为输入法所用到的词库，即补充拓展词库的地方
 import_tables:
-  - cn_dicts_wb/chars
-  - cn_dicts_wb/words
+  - cn_dicts_wb/wubi86_jidian
 ...

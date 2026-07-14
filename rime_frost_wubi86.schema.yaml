@@ -97,6 +97,7 @@ date_translator:
   week: xq       # 星期： 星期二
   datetime: dt   # ISO 8601： 2022-11-29T18:13:11+08:00
   timestamp: ts  # 时间戳： 1669716794
+  quality: 0     # 低于五笔词库候选，避免 dt 等编码抢到前排
 
 
 # Lua 配置：农历的触发关键字
@@ -269,6 +270,7 @@ key_binder:
   import_preset: default
   bindings:
     - { when: has_menu, accept: semicolon, send: 2 }
+    - { when: has_menu, accept: apostrophe, send: 3 }
 
 
 # 拼写设定
