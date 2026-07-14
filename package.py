@@ -6,9 +6,14 @@ import os
 import sys
 import zipfile
 from pathlib import Path
+from typing import Optional
 
 
-EXCLUDED_DIRS = {".git"}
+DEFAULT_EXCLUDED_PATHS = {".git", "build", "dist"}
+
+
+def flatten_excludes(excludes: list[list[str]]) -> list[str]:
+    return [path for group in excludes for path in group]
 
 
 def parse_args() -> argparse.Namespace:
@@ -16,7 +21,11 @@ def parse_args() -> argparse.Namespace:
     default_output = project_root / "dist" / f"{project_root.name}.zip"
 
     parser = argparse.ArgumentParser(
-        description="Package this Rime config directory into a zip archive for import."
+        description="Package this Rime config directory into a zip archive for import.",
+        epilog=(
+            "default excluded paths: "
+            f"{', '.join(sorted(DEFAULT_EXCLUDED_PATHS))}"
+        ),
     )
     parser.add_argument(
         "-o",
@@ -30,16 +39,70 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="fail if the output zip already exists",
     )
+    parser.add_argument(
+        "-x",
+        "--exclude",
+        nargs="+",
+        action="append",
+        default=[],
+        metavar="PATH",
+        help=(
+            "file or directory path(s) to exclude from the archive; relative paths "
+            "are resolved from the config root, and the option can be repeated"
+        ),
+    )
     return parser.parse_args()
 
 
-def iter_package_files(root: Path, output: Path):
+def normalize_excludes(root: Path, excludes: list[str]) -> set[str]:
+    normalized = set()
+    root = root.resolve(strict=False)
+
+    for raw_path in excludes:
+        path = Path(raw_path).expanduser()
+        if path.is_absolute():
+            path = Path(os.path.normpath(os.fspath(path)))
+            try:
+                path = path.relative_to(root)
+            except ValueError as error:
+                raise ValueError(
+                    f"excluded path is outside config root: {raw_path}"
+                ) from error
+        else:
+            path = Path(os.path.normpath(os.fspath(path)))
+
+        if path == Path(".") or any(part == ".." for part in path.parts):
+            raise ValueError(
+                f"excluded path must stay inside config root: {raw_path}"
+            )
+
+        normalized.add(path.as_posix().rstrip("/"))
+
+    return normalized
+
+
+def is_excluded(archive_name: str, excludes: set[str]) -> bool:
+    return any(
+        archive_name == excluded or archive_name.startswith(f"{excluded}/")
+        for excluded in excludes
+    )
+
+
+def iter_package_files(root: Path, output: Path, excludes: Optional[set[str]] = None):
+    excludes = excludes or set()
     output = output.resolve(strict=False)
 
     for dirpath, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
-        dirnames[:] = sorted(name for name in dirnames if name not in EXCLUDED_DIRS)
-
         current_dir = Path(dirpath)
+        dirnames[:] = sorted(
+            name
+            for name in dirnames
+            if not is_excluded(
+                (current_dir / name).relative_to(root).as_posix(),
+                excludes,
+            )
+        )
+
         for filename in sorted(filenames):
             file_path = current_dir / filename
             if file_path.resolve(strict=False) == output:
@@ -48,6 +111,8 @@ def iter_package_files(root: Path, output: Path):
                 continue
 
             archive_name = file_path.relative_to(root).as_posix()
+            if is_excluded(archive_name, excludes):
+                continue
             yield file_path, archive_name
 
 
@@ -61,6 +126,15 @@ def add_symlink(zip_file: zipfile.ZipFile, path: Path, archive_name: str) -> Non
 def main() -> int:
     args = parse_args()
     root = Path(__file__).resolve().parent
+    try:
+        excludes = DEFAULT_EXCLUDED_PATHS | normalize_excludes(
+            root,
+            flatten_excludes(args.exclude),
+        )
+    except ValueError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+
     output = args.output.expanduser()
     if not output.is_absolute():
         output = root / output
@@ -80,7 +154,7 @@ def main() -> int:
         compression=zipfile.ZIP_DEFLATED,
         compresslevel=9,
     ) as zip_file:
-        for file_path, archive_name in iter_package_files(root, output):
+        for file_path, archive_name in iter_package_files(root, output, excludes):
             if file_path.is_symlink():
                 add_symlink(zip_file, file_path, archive_name)
             else:
@@ -90,6 +164,8 @@ def main() -> int:
 
     print(f"created: {output}")
     print(f"files: {file_count}")
+    if excludes:
+        print(f"excluded paths: {len(excludes)}")
     print(f"source bytes: {total_bytes}")
     print(f"zip bytes: {output.stat().st_size}")
     return 0
